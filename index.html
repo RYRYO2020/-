@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>モジュール版 オセロ (リバーシ)</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>AI/2人対戦 オセロ (リバーシ)</h1>
+
+    <div id="app-container">
+
+        <div id="title-screen" class="screen">
+            <h2>モード選択</h2>
+            <button id="mode-ai" class="btn mode-btn start-btn">🤖 AIと対戦 (1人)</button>
+            <button id="mode-two-player" class="btn mode-btn home-btn">🧑‍🤝‍🧑 友人と対戦 (2人)</button>
+        </div>
+
+        <div id="settings-ai-screen" class="screen hidden">
+            <h3>AI対戦 設定</h3>
+            
+            <div class="setting-group">
+                <label for="ai-level">AIの強さ</label>
+                <select id="ai-level">
+                    <option value="1" data-label="初級">初級 (浅い探索 + ランダム)</option>
+                    <option value="3" data-label="中級" selected>中級 (深さ3)</option>
+                    <option value="5" data-label="上級">鬼レベル～～勝てるかな？</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label>駒の選択</label>
+                <input type="radio" id="player-b" name="player-piece" value="B" checked>
+                <label for="player-b">黒 (B) - 先攻</label>
+                <input type="radio" id="player-w" name="player-piece" value="W">
+                <label for="player-w">白 (W) - 後攻</label>
+            </div>
+            
+            <button id="start-ai-button" class="btn start-btn">AI対戦スタート</button>
+            <button id="back-to-title-ai" class="btn home-btn">タイトルに戻る</button>
+        </div>
+
+        <div id="settings-two-player-screen" class="screen hidden">
+            <h3>2人対戦 設定</h3>
+            <p>黒(B)が先攻です。</p>
+            <button id="start-two-player-button" class="btn start-btn">2人対戦スタート</button>
+            <button id="back-to-title-two-player" class="btn home-btn">タイトルに戻る</button>
+        </div>
+        
+        <div id="game-screen" class="screen hidden">
+            <div id="scoreboard">
+                <span>B (<span id="player-x-label">P1</span>): <span id="score-x">0</span></span>
+                <span>W (<span id="player-o-label">P2</span>): <span id="score-o">0</span></span>
+                <span>Draw: <span id="score-draw">0</span></span>
+            </div>
+            
+            <div id="game-info-container">
+                <div id="current-setting"></div>
+                <div id="game-info"></div>
+            </div>
+
+            <div id="board-container">
+                <div id="coords-top" class="coords"></div>
+                <div id="coords-left" class="coords vertical"></div>
+                <div id="board"></div>
+                <div id="ai-thinking-indicator" class="hidden">
+                    <div class="spinner"></div>
+                    <p>AI 思考中...</p>
+                </div>
+            </div>
+
+            <div id="turn-timer">00:00</div> <div id="move-log"></div> <div id="game-controls">
+                <button id="undo-button" class="btn home-btn" disabled>↩️ 一手戻す</button> <button id="restart-button" class="btn start-btn">リスタート</button>
+                <button id="home-button" class="btn home-btn">タイトルに戻る</button>
+            </div>
+        </div>
+        
+        <div id="result-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2 id="result-message"></h2>
+                <p id="final-scores"></p>
+                <button class="btn start-btn close-modal">OK</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
