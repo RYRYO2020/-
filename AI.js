@@ -1,4 +1,4 @@
-// AI.js - 真・超鬼神モード (Final Kishin + Pass Detection)
+// AI.js - レベル修正版
 const BOARD_SIZE = 8;
 const BOARD_CELLS = 64;
 
@@ -7,6 +7,7 @@ const DIRECTIONS = [
     [-1, -1], [-1, 1], [1, -1], [1, 1]
 ];
 
+// 盤面の重みづけ（角や端を重視）
 const WEIGHTS = [
     [150, -60, 20, 10, 10, 20, -60, 150],
     [-60, -100, -5, -5, -5, -5, -100, -60],
@@ -50,15 +51,6 @@ export function getValidMoves(board, player) {
     return moves;
 }
 
-export function checkPass(board, player, playerName) {
-    const moves = getValidMoves(board, player);
-    if (moves.length === 0) {
-        console.log(`The player は置く場所がありません。パスします。`);
-        return true; 
-    }
-    return false; 
-}
-
 // --- AI思考ロジック ---
 
 function simulateMove(board, index, player) {
@@ -76,9 +68,10 @@ function evaluate(board, aiPlayer, humanPlayer) {
         if (board[i] === aiPlayer) score += WEIGHTS[i >> 3][i & 7];
         else if (board[i] === opponent) score -= WEIGHTS[i >> 3][i & 7];
     }
+    // 確定石や着手可能数も考慮するとより強くなるが、今回はシンプルに重みメイン
     const aiMoves = getValidMoves(board, aiPlayer).length;
     const humanMoves = getValidMoves(board, opponent).length;
-    score += (aiMoves - humanMoves) * 30; // 機動性重視
+    score += (aiMoves - humanMoves) * 20; 
     return score;
 }
 
@@ -88,15 +81,19 @@ function minimax(board, depth, alpha, beta, isMaximizing, aiPlayer, humanPlayer)
     const player = isMaximizing ? aiPlayer : humanPlayer;
     let moves = getValidMoves(board, player);
 
+    // パスの場合
     if (moves.length === 0) {
         const opponentMoves = getValidMoves(board, isMaximizing ? humanPlayer : aiPlayer);
+        // 双方が置けない＝ゲーム終了
         if (opponentMoves.length === 0) {
             const diff = board.filter(c => c === aiPlayer).length - board.filter(c => c === humanPlayer).length;
-            return diff * 10000;
+            return diff * 10000; // 石数差で勝敗判定
         }
+        // パスして探索継続
         return minimax(board, depth - 1, alpha, beta, !isMaximizing, aiPlayer, humanPlayer);
     }
 
+    // 探索順序の最適化（良い手から探索すると高速化）
     moves.sort((a, b) => WEIGHTS[b >> 3][b & 7] - WEIGHTS[a >> 3][a & 7]);
 
     if (isMaximizing) {
@@ -125,22 +122,35 @@ export function findBestMove(board, aiPlayer, humanPlayer, maxDepth) {
     
     // AIに置く場所がない場合
     if (moves.length === 0) {
-        alert("AIは置く場所がありません。パスします。");
+        // パス処理はGame.js側で行うため、ここではnullを返すだけにする
         return null;
     }
 
-    const emptyCells = board.filter(c => c === null).length;
+    // ★修正箇所: レベルに応じた深さ制御
     let searchDepth = maxDepth;
-    if (emptyCells <= 12) searchDepth = 12;
-    else if (emptyCells <= 18) searchDepth = 8;
-    else searchDepth = 6;
+
+    // 「上級」以上（maxDepthが5以上）に設定されている場合のみ、状況に応じてブーストする
+    if (maxDepth >= 5) {
+        const emptyCells = board.filter(c => c === null).length;
+        if (emptyCells <= 14) searchDepth = 14; // 終盤：完全読み（最強）
+        else if (emptyCells <= 20) searchDepth = 8; // 終盤手前：深く読む
+        else searchDepth = 6; // 序盤中盤：そこそこ深く
+    }
+    // ※ 初級(1)や中級(3)の場合は、渡された maxDepth をそのまま使うので弱くなる
 
     let bestScore = -Infinity;
     let bestMove = moves[0];
 
+    // ランダム性を少し入れる（同じ局面で毎回全く同じ手を打つのを防ぐため）
+    // 配列をシャッフルしてから探索開始
+    moves.sort(() => Math.random() - 0.5);
+
     for (const move of moves) {
-        if (WEIGHTS[move >> 3][move & 7] === 150) return move; // 角は即決
+        // 角（重み150）が取れるなら最優先で取る（高速化）
+        if (WEIGHTS[move >> 3][move & 7] === 150) return move;
+
         const score = minimax(simulateMove(board, move, aiPlayer), searchDepth - 1, -Infinity, Infinity, false, aiPlayer, humanPlayer);
+        
         if (score > bestScore) {
             bestScore = score;
             bestMove = move;
