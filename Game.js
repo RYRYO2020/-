@@ -226,7 +226,7 @@ export class Game {
             UI.hideThinkingIndicator();
             
             if (bestMove !== null) {
-                UI.highlightCell(bestMove, 1000); 
+                UI.highlightCell(bestMove, 2000); 
 
                 setTimeout(() => {
                     this.isProcessingMove = false;
@@ -293,7 +293,7 @@ export class Game {
             const min = String(Math.floor(seconds / 60)).padStart(2, '0');
             const sec = String(seconds % 60).padStart(2, '0');
             timerElement.textContent = `${min}:${sec}`;
-        }, 1000);
+        }, 3000);
     }
 
     resetTimer() {
