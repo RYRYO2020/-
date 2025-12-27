@@ -1,4 +1,4 @@
-// AI.js - レベル修正版
+// AI.js - 鬼レベル限界突破バージョン
 const BOARD_SIZE = 8;
 const BOARD_CELLS = 64;
 
@@ -7,7 +7,7 @@ const DIRECTIONS = [
     [-1, -1], [-1, 1], [1, -1], [1, 1]
 ];
 
-// 盤面の重みづけ（角や端を重視）
+// 盤面の重み（中級・上級用）
 const WEIGHTS = [
     [150, -60, 20, 10, 10, 20, -60, 150],
     [-60, -100, -5, -5, -5, -5, -100, -60],
@@ -19,7 +19,7 @@ const WEIGHTS = [
     [150, -60, 20, 10, 10, 20, -60, 150]
 ];
 
-// --- 判定ロジック ---
+// --- 基本機能 ---
 
 export function getFlippableStones(board, index, player) {
     if (board[index] !== null) return [];
@@ -51,8 +51,6 @@ export function getValidMoves(board, player) {
     return moves;
 }
 
-// --- AI思考ロジック ---
-
 function simulateMove(board, index, player) {
     const nextBoard = [...board];
     const flippable = getFlippableStones(nextBoard, index, player);
@@ -61,20 +59,26 @@ function simulateMove(board, index, player) {
     return nextBoard;
 }
 
+// --- 評価関数 ---
 function evaluate(board, aiPlayer, humanPlayer) {
     let score = 0;
     const opponent = humanPlayer;
+    
+    // 1. 場所の重み
     for (let i = 0; i < 64; i++) {
         if (board[i] === aiPlayer) score += WEIGHTS[i >> 3][i & 7];
         else if (board[i] === opponent) score -= WEIGHTS[i >> 3][i & 7];
     }
-    // 確定石や着手可能数も考慮するとより強くなるが、今回はシンプルに重みメイン
+    
+    // 2. 機動性（相手の手を減らす）
     const aiMoves = getValidMoves(board, aiPlayer).length;
     const humanMoves = getValidMoves(board, opponent).length;
     score += (aiMoves - humanMoves) * 20; 
+
     return score;
 }
 
+// --- ミニマックス法 ---
 function minimax(board, depth, alpha, beta, isMaximizing, aiPlayer, humanPlayer) {
     if (depth === 0) return evaluate(board, aiPlayer, humanPlayer);
 
@@ -84,16 +88,15 @@ function minimax(board, depth, alpha, beta, isMaximizing, aiPlayer, humanPlayer)
     // パスの場合
     if (moves.length === 0) {
         const opponentMoves = getValidMoves(board, isMaximizing ? humanPlayer : aiPlayer);
-        // 双方が置けない＝ゲーム終了
+        // 双方置けない＝ゲーム終了
         if (opponentMoves.length === 0) {
             const diff = board.filter(c => c === aiPlayer).length - board.filter(c => c === humanPlayer).length;
-            return diff * 10000; // 石数差で勝敗判定
+            return diff * 10000; 
         }
-        // パスして探索継続
         return minimax(board, depth - 1, alpha, beta, !isMaximizing, aiPlayer, humanPlayer);
     }
 
-    // 探索順序の最適化（良い手から探索すると高速化）
+    // 探索順序の最適化
     moves.sort((a, b) => WEIGHTS[b >> 3][b & 7] - WEIGHTS[a >> 3][a & 7]);
 
     if (isMaximizing) {
@@ -117,36 +120,70 @@ function minimax(board, depth, alpha, beta, isMaximizing, aiPlayer, humanPlayer)
     }
 }
 
+// --- 初級専用（弱いロジック） ---
+function getGreedyMove(board, moves, player) {
+    if (Math.random() < 0.3) {
+        return moves[Math.floor(Math.random() * moves.length)];
+    }
+    let bestMove = moves[0];
+    let maxFlips = -1;
+    moves.sort(() => Math.random() - 0.5);
+    for (const move of moves) {
+        const flippableCount = getFlippableStones(board, move, player).length;
+        if (flippableCount > maxFlips) {
+            maxFlips = flippableCount;
+            bestMove = move;
+        }
+    }
+    return bestMove;
+}
+
+// --- メイン関数 ---
 export function findBestMove(board, aiPlayer, humanPlayer, maxDepth) {
     const moves = getValidMoves(board, aiPlayer);
-    
-    // AIに置く場所がない場合
-    if (moves.length === 0) {
-        // パス処理はGame.js側で行うため、ここではnullを返すだけにする
-        return null;
+    if (moves.length === 0) return null;
+
+    // === 【初級】 (Level 1) ===
+    if (maxDepth === 1) {
+        return getGreedyMove(board, moves, aiPlayer);
     }
 
-    // ★修正箇所: レベルに応じた深さ制御
-    let searchDepth = maxDepth;
-
-    // 「上級」以上（maxDepthが5以上）に設定されている場合のみ、状況に応じてブーストする
-    if (maxDepth >= 5) {
-        const emptyCells = board.filter(c => c === null).length;
-        if (emptyCells <= 14) searchDepth = 14; // 終盤：完全読み（最強）
-        else if (emptyCells <= 20) searchDepth = 8; // 終盤手前：深く読む
-        else searchDepth = 6; // 序盤中盤：そこそこ深く
+    // === 【中級】 (Level 3) ===
+    if (maxDepth === 3) {
+        // 通常の3手読み
+        let bestScore = -Infinity;
+        let bestMove = moves[0];
+        moves.sort(() => Math.random() - 0.5);
+        for (const move of moves) {
+            if (WEIGHTS[move >> 3][move & 7] === 150) return move;
+            const score = minimax(simulateMove(board, move, aiPlayer), 2, -Infinity, Infinity, false, aiPlayer, humanPlayer);
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = move;
+            }
+        }
+        return bestMove;
     }
-    // ※ 初級(1)や中級(3)の場合は、渡された maxDepth をそのまま使うので弱くなる
+
+    // === 【鬼レベル】 (Level 5以上) ===
+    // 限界まで強く
+    const emptyCells = board.filter(c => c === null).length;
+    let searchDepth = 8; // デフォルトで8手読み（かなり重い・強い）
+
+    // 終盤は完全解析（残り18手以下なら全部読む）
+    if (emptyCells <= 18) {
+        searchDepth = emptyCells; 
+    }
 
     let bestScore = -Infinity;
     let bestMove = moves[0];
 
-    // ランダム性を少し入れる（同じ局面で毎回全く同じ手を打つのを防ぐため）
-    // 配列をシャッフルしてから探索開始
-    moves.sort(() => Math.random() - 0.5);
+    // 鬼レベルはランダム要素なし。常に最善手を選ぶ。
+    // ただし探索順序の最適化のため重み順には並べる
+    moves.sort((a, b) => WEIGHTS[b >> 3][b & 7] - WEIGHTS[a >> 3][a & 7]);
 
     for (const move of moves) {
-        // 角（重み150）が取れるなら最優先で取る（高速化）
+        // 角は即決（高速化のため）
         if (WEIGHTS[move >> 3][move & 7] === 150) return move;
 
         const score = minimax(simulateMove(board, move, aiPlayer), searchDepth - 1, -Infinity, Infinity, false, aiPlayer, humanPlayer);
